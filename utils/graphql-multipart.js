@@ -9,16 +9,19 @@ const commonTypes = {
 	// 避免每次上传图片时 getType方法 大量遍历MIME标准，提高性能
 }
 export let uploadTask = null
-export async function multipartUpload({
-	url,
-	header,
-	fields,
-	files,
-	success,
-	fail,
-	complete
-}) {
-	let data = await toBuffer(fields, files)
+
+export async function graphqlUpload({
+										url,
+										header,
+										query,
+										variables,
+										uploadKey,
+										files,
+										success,
+										fail,
+										complete
+									}) {
+	let data = await toBuffer(query, variables, uploadKey, files)
 	uploadTask = wx.request({
 		url,
 		data,
@@ -41,33 +44,51 @@ export async function multipartUpload({
 
 /**
  * 转换成 ArrayBuffer
- * @param {Object} fields
+ * @param {String} query
+ * @param {Object} variables
+ * @param {String} uploadKey
  * @param {Object} files
  */
-async function toBuffer(fields, files) {
+async function toBuffer(query, variables, uploadKey, files) {
 	const mixUints = []
-	let fieldHeader = ''
-	for (const key in fields) {
-		fieldHeader += getFieldHeader(key, fields[key])
-	}
-	mixUints.push(str2Uint8Arr(fieldHeader))
 
+	let operations = {
+		query: query,
+		variables: variables
+	}
+	let fieldHeader = getFormDataHeader("operations")
+	mixUints.push(str2Uint8Arr(fieldHeader))
+	mixUints.push(str2Uint8Arr(JSON.stringify(operations)))
+	mixUints.push(str2Uint8Arr(br))
+
+	let map = {},
+		fileIdx = 0;
 	for (const key in files) {
 		const filePath = files[key]
+		let idx = fileIdx++,
+			mapper = "file" + idx;
 
-		const fileHeader = getFileHeader(key, filePath)
+		const fileHeader = getFileHeader(mapper, String(filePath))
 		if (fileHeader == null) continue
 		mixUints.push(str2Uint8Arr(fileHeader))
 
-		const fileUint8Arr = await file2Uint8Arr(filePath)
+		const fileUint8Arr = await file2Uint8Arr(String(filePath))
 		mixUints.push(fileUint8Arr)
 		mixUints.push(str2Uint8Arr(br))
+
+		map[mapper] = ["variables." + uploadKey + "." + idx];
 	}
 
+	let mapHeader = getFormDataHeader("map")
+	mixUints.push(str2Uint8Arr(mapHeader))
+	mixUints.push(str2Uint8Arr(JSON.stringify(map)))
+
+	mixUints.push(str2Uint8Arr(br))
 	mixUints.push(str2Uint8Arr(splitBoundary + "--")) //结尾
 
 	return convert2Buffer(mixUints)
 }
+
 /**
  * mix数组转换成 arraybuffer
  * @param {Object} mixUints
@@ -87,13 +108,13 @@ function convert2Buffer(mixUints) {
 	}
 	return arrayBuffer
 }
+
 /**
- * 生成普通字段boundary串
- * @param {Object} key
- * @param {Object} val
+ * 生成operations和map的boundary串
+ * @param {Object} name
  */
-function getFieldHeader(key, val) {
-	return `${splitBoundary}${br}Content-Disposition: form-data; name="${key}"${br2}${val}${br}`
+function getFormDataHeader(name) {
+	return `${splitBoundary}${br}Content-Disposition: form-data; name="${name}"${br2}`
 }
 
 /**
@@ -107,6 +128,7 @@ function getFileHeader(name, filePath) {
 	const filename = filePath.replace(/^(.*)\/(.*)/, "$2")
 	return `${splitBoundary}${br}Content-Disposition: form-data; name="${name}"; filename="${filename}"${br}Content-Type: ${contentType}${br2}`
 }
+
 /**
  * 生成boundary
  */
@@ -119,6 +141,7 @@ function generateBoundary() {
 	}
 	return boundary;
 }
+
 /**
  * 字符串转 Uint8Array
  * @param {String} str
@@ -143,6 +166,7 @@ function str2Uint8Arr(str) {
 	}
 	return bytes
 }
+
 /**
  * 文件转 Uint8Array
  * @param {String} filePath
@@ -160,6 +184,7 @@ function file2Uint8Arr(filePath) {
 		})
 	})
 }
+
 /**
  * 获取文件类型
  * @param {Object} url
