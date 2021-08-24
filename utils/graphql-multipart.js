@@ -1,4 +1,4 @@
-import mines from "mime-db"
+import mimes from "mime-db"
 
 const br = '\r\n'
 const br2 = '\r\n\r\n'
@@ -196,9 +196,9 @@ function getType(url) {
 	if (commonTypes.hasOwnProperty(ext)) {
 		return commonTypes[ext]
 	}
-	for (let k in mines) {
-		if (mines[k].extensions === undefined) continue
-		if (mines[k].extensions.indexOf(ext) !== -1) {
+	for (let k in mimes) {
+		if (mimes[k].extensions === undefined) continue
+		if (mimes[k].extensions.indexOf(ext) !== -1) {
 			commonTypes[ext] = k
 			return k
 		}

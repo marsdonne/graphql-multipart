@@ -7,9 +7,9 @@
 
 <script>
 	import {
-		multipartUpload as upload,
+		graphqlUpload as upload,
 		uploadTask
-	} from "@/utils/xp-multipart.min.js"
+	} from "@/utils/graphql-multipart.min.js"
 	export default {
 		methods: {
 			mpSelectImg() {
@@ -20,11 +20,12 @@
 							title: "上传中"
 						})
 						upload({
-							url: "http://localhost:6891/upload",
-							fields: {
-								username: "张三",
-								age: 28
-							},
+							url: "http://localhost:6891/graphql",
+							query: 'mutation Upload($files:[Upload!]!){operation(files:$files){id}}',
+                            variables: {
+                                uploadFiles: [null,null]
+                            },
+                            uploadKey: "uploadFiles",
 							files: {
 								avatar: res.tempFilePaths[0],
 								img: res.tempFilePaths[1]
