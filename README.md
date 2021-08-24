@@ -22,20 +22,21 @@
 ```js
 
 import {
-    multipartUpload as upload,
+    graphqlUpload as upload,
     uploadTask as task //上传任务对象，同requestTask
-} from "@/utils/xp-multipart.js"
+} from "@/utils/graphql-multipart.js"
 
 //1、回调函数
 uni.chooseImage({
     count: 2,//选择两张图片
     success(res) {
         upload({
-            url: "http://localhost:6891/upload", //后端接口
-            fields: {
-                username: "张三",
-                age: 24
+            url: "http://localhost:6891/graphql", //后端接口
+            query: 'mutation Upload($files:[Upload!]!){operation(files:$files){id}}',
+            variables: {
+                uploadFiles: [null,null]
             },
+            uploadKey: "uploadFiles",
             files: {
                 avatar: res.tempFilePaths[0],
                 img: res.tempFilePaths[1]
@@ -57,20 +58,22 @@ uni.chooseImage({
 task.abort();//取消上传
 ```
 
-### 附上后端接口示例（这里用的是spring-boot）
+### 附上后端接口示例（这里用的是com.graphql-java-kickstart）
 
 ```java
-    @PostMapping("/upload")
-    public String upload(@RequestParam("username") String name,
-                         @RequestParam("age") Integer age,
-                         MultipartFile avatar,
-                         MultipartFile img) {
-        System.out.println(name);
-        System.out.println(age);
-        System.out.println(avatar.getOriginalFilename());
-        System.out.println(img.getOriginalFilename());
-        return "success";
+    public Boolean testMultiFilesUpload(List<Part> parts, DataFetchingEnvironment env) {
+        // get file parts from DataFetchingEnvironment, the parts parameter is not use
+        List<Part> attachmentParts = env.getArgument("uploadFiles");
+        int i = 1;
+        for (Part part : attachmentParts) {
+            String uploadName = "copy" + i;
+            try {
+                part.write("your path:" + uploadName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            i++;
+        }
+        return true;
     }
 ```
-
-### 喜欢的话给个star吧！
